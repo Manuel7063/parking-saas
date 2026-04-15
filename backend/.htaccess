@@ -1,0 +1,8 @@
+# Bloquear acceso directo al directorio backend desde el navegador
+Options -Indexes
+
+# Solo permitir acceso a los archivos .php de la API
+<Files "config.php">
+    Order allow,deny
+    Deny from all
+</Files>
