@@ -8,6 +8,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -19,13 +20,7 @@ export default function Login() {
         // Guardamos la sesión localmente para que la API pueda usar los IDs
         localStorage.setItem('autoticket_user', JSON.stringify(response));
         
-        if (response.perfil === 'SUPERADMIN') {
-          navigate('/master');
-        } else if (response.perfil === 'ADMIN') {
-          navigate('/config');
-        } else {
-          navigate('/caseta');
-        }
+        navigate('/caseta');
       } else {
         alert('Credenciales incorrectas');
       }

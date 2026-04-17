@@ -68,7 +68,7 @@ export const loginUsuario = async (rut, password) => {
 
 export const getTicketsPendientes = async () => {
   const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
-  return await fetchAPI(`tickets.php?empresa_id=${user.empresa_id || 1}`, 'GET');
+  return await fetchAPI(`tickets.php?empresa_id=${user.empresa_id || 1}&_t=${Date.now()}`, 'GET');
 };
 
 export const crearTicket = async (data) => {
@@ -81,16 +81,59 @@ export const crearTicket = async (data) => {
   return await fetchAPI('tickets.php', 'POST', payload);
 };
 
+export const getTicketInfo = async (codigo) => {
+  return await fetchAPI(`tickets.php?buscar_codigo=${codigo}&_t=${Date.now()}`, 'GET');
+};
+
+export const pagarTicket = async (id, total, minutos) => {
+  return await fetchAPI('tickets.php', 'PUT', { id, total, minutos });
+};
+
+export const getHistorialTickets = async () => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  const empresaId = user.empresa_id || 1;
+  return await fetchAPI(`tickets.php?all_tickets=1&empresa_id=${empresaId}&_t=${Date.now()}`, 'GET');
+};
+
+export const deleteTicket = async (id) => {
+  return await fetchAPI(`tickets.php?id=${id}`, 'DELETE');
+};
+
+export const getReporteDiario = async (desde = '', hasta = '') => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  const empresaId = user.empresa_id || 1;
+  const url = `tickets.php?reporte=daily&empresa_id=${empresaId}&desde=${desde}&hasta=${hasta}&_t=${Date.now()}`;
+  return await fetchAPI(url, 'GET');
+};
+
+export const getEmpresaConfig = async () => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  const id = user.empresa_id || 1;
+  return await fetchAPI(`empresas.php?id=${id}`, 'GET');
+};
+
+export const updateEmpresaConfig = async (config) => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  const payload = { ...config, id: user.empresa_id || 1 };
+  return await fetchAPI('empresas.php', 'POST', payload);
+};
+
 export const getEmpresas = async () => {
-  return await fetchAPI('empresas.php', 'GET');
+  return await fetchAPI(`empresas.php?todos=1&_t=${Date.now()}`, 'GET');
+};
+
+export const crearEmpresa = async (datos) => {
+  return await fetchAPI('empresas.php', 'POST', { accion: 'crear', ...datos });
 };
 
 export const getTarifas = async () => {
-  return await fetchAPI('tarifas.php', 'GET');
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  return await fetchAPI(`tarifas.php?empresa_id=${user.empresa_id || 1}&_t=${Date.now()}`, 'GET');
 };
 
 export const saveTarifas = async (tarifas) => {
-  return await fetchAPI('tarifas.php', 'POST', { tarifas });
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  return await fetchAPI('tarifas.php', 'POST', { tarifas, empresa_id: user.empresa_id || 1 });
 };
 
 export const cambiarPassword = async (rut, claveActual, claveNueva) => {
@@ -99,4 +142,23 @@ export const cambiarPassword = async (rut, claveActual, claveNueva) => {
     clave_actual: claveActual,
     clave_nueva:  claveNueva
   });
+};
+
+// ==========================================
+// MANTENEDOR DE USUARIOS 
+// ==========================================
+
+export const getUsuarios = async () => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  return await fetchAPI(`usuarios.php?empresa_id=${user.empresa_id || 1}&_t=${Date.now()}`, 'GET');
+};
+
+export const crearUsuario = async (data) => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  return await fetchAPI('usuarios.php', 'POST', { ...data, empresa_id: user.empresa_id || 1 });
+};
+
+export const eliminarUsuario = async (id) => {
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
+  return await fetchAPI(`usuarios.php?id=${id}&empresa_id=${user.empresa_id || 1}`, 'DELETE');
 };

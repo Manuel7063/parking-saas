@@ -12,6 +12,9 @@ define('DB_NAME', 'fgpebtzv_parking_saas');
 // =============================================================
 //  NO EDITES NADA ABAJO DE ESTA LÍNEA
 // =============================================================
+// Configuración de Zona Horaria (Chile)
+date_default_timezone_set('America/Santiago');
+
 function getDB() {
     try {
         $pdo = new PDO(
@@ -21,6 +24,10 @@ function getDB() {
         );
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        
+        // Sincronizar zona horaria con MySQL
+        $pdo->exec("SET time_zone = '-04:00'");
+        
         return $pdo;
     } catch(PDOException $e) {
         http_response_code(500);

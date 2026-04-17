@@ -2,65 +2,112 @@
 // backend/api/empresas.php
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200); exit;
+    http_response_code(200);
+    exit;
 }
 
 require_once '../config.php';
 $db = getDB();
+
 $method = $_SERVER['REQUEST_METHOD'];
+$empresa_id = isset($_GET['id']) ? $_GET['id'] : 1; 
 
-switch ($method) {
+if ($method === 'GET') {
+    if (isset($_GET['todos'])) {
+        $stmt = $db->query("SELECT id, nombre, 'No registrado' as rut_contacto, 'Activo' as estado, 'Premium' as plan FROM empresas ORDER BY id DESC");
+        $all = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(["success" => true, "data" => $all]);
+        exit;
+    }
 
-    case 'GET':
-        // Listar todas las empresas (solo para SUPERADMIN)
-        $stmt = $db->prepare("SELECT id, nombre, rut_contacto, plan, estado FROM empresas ORDER BY id DESC");
-        $stmt->execute();
-        $empresas = $stmt->fetchAll();
-        echo json_encode(["success" => true, "data" => $empresas]);
-        break;
+    $stmt = $db->prepare("SELECT id, nombre, ticket_razon_social, ticket_observacion FROM empresas WHERE id = :id");
+    $stmt->execute([':id' => $empresa_id]);
+    $empresa = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($empresa) {
+        echo json_encode(["success" => true, "data" => $empresa]);
+    } else {
+        http_response_code(404);
+        echo json_encode(["success" => false, "message" => "Empresa no encontrada."]);
+    }
+}
 
-    case 'POST':
-        // Crear nueva empresa
-        $data = json_decode(file_get_contents("php://input"));
-
-        if (empty($data->nombre) || empty($data->rut_contacto)) {
-            http_response_code(400);
-            echo json_encode(["success" => false, "message" => "Nombre y RUT son obligatorios."]);
-            exit;
-        }
-
-        $plan   = isset($data->plan) ? $data->plan : 'Básico';
-        $stmt = $db->prepare("INSERT INTO empresas (nombre, rut_contacto, plan, estado) VALUES (:nombre, :rut, :plan, 'Activo')");
-        $stmt->execute([
+if ($method === 'POST') {
+    $data = json_decode(file_get_contents("php://input"));
+    
+    // Crear una nueva empresa si la acción lo determina
+    if (isset($data->accion) && $data->accion === 'crear') {
+        $query = "INSERT INTO empresas (nombre, ticket_razon_social, ticket_observacion) VALUES (:nombre, :nombre2, 'LUNES A SABADO 09:00 A 20:00 HRS')";
+        $stmt = $db->prepare($query);
+        $success = $stmt->execute([
             ':nombre' => $data->nombre,
-            ':rut'    => $data->rut_contacto,
-            ':plan'   => $plan
+            ':nombre2' => $data->nombre
         ]);
-        $nuevo_id = $db->lastInsertId();
-        http_response_code(201);
-        echo json_encode(["success" => true, "id" => $nuevo_id, "message" => "Empresa registrada exitosamente."]);
-        break;
+        if ($success) {
+            $nuevoId = $db->lastInsertId();
+            
+            // AHORA SÍ: Crear automáticamente el usuario ADMIN
+            $rut = isset($data->rut_contacto) ? $data->rut_contacto : '11111111-1';
+            $clave = 'Admin1234';
+            $hash = password_hash($clave, PASSWORD_BCRYPT);
+            
+            $queryUser = "INSERT INTO usuarios (rut, nombre, clave_hash, perfil, empresa_id, activo) 
+                          VALUES (:rut, :nombre, :hash, 'ADMIN', :empresa_id, 1)";
+            $stmtUser = $db->prepare($queryUser);
+            $stmtUser->execute([
+                ':rut' => $rut,
+                ':nombre' => 'Dueño ' . $data->nombre,
+                ':hash' => $hash,
+                ':empresa_id' => $nuevoId
+            ]);
 
-    case 'PUT':
-        // Actualizar estado de empresa (Activo/Suspendido)
-        $data = json_decode(file_get_contents("php://input"));
-        if (empty($data->id) || empty($data->estado)) {
-            http_response_code(400);
-            echo json_encode(["success" => false, "message" => "Se requiere id y estado."]);
-            exit;
+            // Crear config base de vehículos 
+            $vehiculos = ['Auto', 'Moto', 'Camioneta'];
+            foreach ($vehiculos as $vnom) {
+                $stmtV = $db->prepare("INSERT INTO tipos_vehiculo (empresa_id, nombre, activo) VALUES (:eid, :nom, 1)");
+                $stmtV->execute([':eid' => $nuevoId, ':nom' => $vnom]);
+                $vId = $db->lastInsertId();
+                
+                // Y crearles tarifa en $0 por defecto para que no reviente el cálculo y el admin deba configurarlas
+                $stmtT = $db->prepare("INSERT INTO tarifas (empresa_id, tipo_vehiculo_id, cobro_minimo, minutos_minimo, cobro_fraccion, minutos_fraccion) 
+                                       VALUES (:eid, :vid, 0, 0, 0, 1)");
+                $stmtT->execute([':eid' => $nuevoId, ':vid' => $vId]);
+            }
+
+            echo json_encode(["success" => true, "message" => "Empresa creada exitosamente con configuraciones base.", "id" => $nuevoId]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["success" => false, "message" => "Error al crear la empresa en MySQL."]);
         }
-        $stmt = $db->prepare("UPDATE empresas SET estado = :estado WHERE id = :id");
-        $stmt->execute([':estado' => $data->estado, ':id' => $data->id]);
-        echo json_encode(["success" => true, "message" => "Estado actualizado."]);
-        break;
+        exit;
+    }
 
-    default:
-        http_response_code(405);
-        echo json_encode(["success" => false, "message" => "Método no soportado."]);
-        break;
+    if (!empty($data->id)) {
+        $query = "UPDATE empresas SET 
+                  ticket_razon_social = :razon, 
+                  ticket_observacion = :obs 
+                  WHERE id = :id";
+        
+        $stmt = $db->prepare($query);
+        $success = $stmt->execute([
+            ':razon' => $data->ticket_razon_social,
+            ':obs' => $data->ticket_observacion,
+            ':id' => $data->id
+        ]);
+        
+        if ($success) {
+            echo json_encode(["success" => true, "message" => "Configuración de ticket actualizada."]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["success" => false, "message" => "Error al actualizar configuración."]);
+        }
+    } else {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "ID de empresa no proporcionado."]);
+    }
 }
 ?>

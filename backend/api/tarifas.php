@@ -15,9 +15,11 @@ $db = getDB();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Para simplificar, en este MVP usamos empresa_id = 1
-// En el futuro, esto vendrá de un Token JWT o sesión
+// Dinámico: Obtener ID empresarial para SaaS
 $empresa_id = 1;
+if ($method === 'GET' && isset($_GET['empresa_id'])) {
+    $empresa_id = $_GET['empresa_id'];
+}
 
 if ($method === 'GET') {
     // Obtener tipos de vehículo y sus tarifas asociadas
@@ -31,6 +33,24 @@ if ($method === 'GET') {
     $stmt->execute([':empresa_id' => $empresa_id]);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // SISTEMA DE AUTO-SANACIÓN: Si la empresa no tiene vehículos (porque se creó antes de tener el script final), se los inyectamos en caliente.
+    if (count($results) === 0) {
+        $vehiculos = ['Auto', 'Moto', 'Camioneta'];
+        foreach ($vehiculos as $vnom) {
+            $stmtV = $db->prepare("INSERT INTO tipos_vehiculo (empresa_id, nombre, activo) VALUES (:eid, :nom, 1)");
+            $stmtV->execute([':eid' => $empresa_id, ':nom' => $vnom]);
+            $vId = $db->lastInsertId();
+            
+            $stmtT = $db->prepare("INSERT INTO tarifas (empresa_id, tipo_vehiculo_id, cobro_minimo, minutos_minimo, cobro_fraccion, minutos_fraccion) 
+                                   VALUES (:eid, :vid, 300, 10, 25, 1)");
+            $stmtT->execute([':eid' => $empresa_id, ':vid' => $vId]);
+        }
+        
+        // Volvemos a consultar después de la sanación
+        $stmt->execute([':empresa_id' => $empresa_id]);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
     echo json_encode(["success" => true, "data" => $results]);
 }
 
@@ -42,6 +62,8 @@ if ($method === 'POST') {
         echo json_encode(["success" => false, "message" => "Datos de tarifas no válidos."]);
         exit;
     }
+    
+    $empresa_id = isset($data['empresa_id']) ? $data['empresa_id'] : 1;
     
     try {
         $db->beginTransaction();

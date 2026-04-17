@@ -1,25 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound } from 'lucide-react';
+import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound, MapPin, CreditCard, Banknote } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getTicketsPendientes, crearTicket } from '../services/api';
+import { getTicketsPendientes, crearTicket, getTicketInfo, pagarTicket, getEmpresaConfig, getTarifas } from '../services/api';
 import CambiarPassword from './CambiarPassword';
 
 export default function Caseta() {
   const navigate = useNavigate();
   // Estado local para simulaciones
   const [patente, setPatente] = useState('');
-  const [tipoVehiculoId, setTipoVehiculoId] = useState(1); // 1 = Auto, 2 = Moto, 3 = 3/4
+  const [tiposVehiculos, setTiposVehiculos] = useState([]);
+  const [tipoVehiculoId, setTipoVehiculoId] = useState(null);
   const [codigoBarraSalida, setCodigoBarraSalida] = useState('');
   const [loadingGrid, setLoadingGrid] = useState(true);
   const [imprimiendo, setImprimiendo] = useState(false);
   const [showCambiarPass, setShowCambiarPass] = useState(false);
+  const [ticketEncontrado, setTicketEncontrado] = useState(null);
+  const [reloj, setReloj] = useState(new Date().toLocaleTimeString());
+  const [empresa, setEmpresa] = useState(null);
+  const [lastTicket, setLastTicket] = useState(null);
+  const [mensaje, setMensaje] = useState(null);
 
-  // Datos reales desde la API
+  // Datos reales del usuario y pendientes
+  const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
   const [pendientes, setPendientes] = useState([]);
 
   useEffect(() => {
     cargarPendientes();
+    cargarConfig();
+    const timer = setInterval(() => {
+      setReloj(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (lastTicket && window.JsBarcode) {
+      setTimeout(() => {
+        const elem = document.getElementById('barcode-elem');
+        if (elem) {
+          window.JsBarcode("#barcode-elem", lastTicket.codigo, {
+            format: "CODE128",
+            width: 2,
+            height: 40,
+            displayValue: false,
+            margin: 0
+          });
+        }
+      }, 50);
+    }
+  }, [lastTicket]);
+
+  const cargarConfig = async () => {
+    const resp = await getEmpresaConfig();
+    if (resp.success) {
+      setEmpresa(resp.data);
+    }
+    const ts = await getTarifas();
+    if (ts.success && ts.data && ts.data.length > 0) {
+      setTiposVehiculos(ts.data);
+      if (!tipoVehiculoId) setTipoVehiculoId(ts.data[0].vehicle_type_id);
+    }
+  };
 
   const cargarPendientes = async () => {
     setLoadingGrid(true);
@@ -31,19 +72,74 @@ export default function Caseta() {
   };
 
   const handleEntrada = async () => {
+    if (!patente && !window.confirm('¿Desea ingresar vehículo sin patente?')) return;
+
     setImprimiendo(true);
-    const result = await crearTicket({ patente, tipo_vehiculo_id: tipoVehiculoId });
-    if (result.success) {
-      setPatente('');
-      await cargarPendientes();
+    try {
+      const result = await crearTicket({ patente, tipo_vehiculo_id: tipoVehiculoId });
+      
+      if (result.success) {
+        // Información para el ticket impreso
+        const vNombre = tiposVehiculos.find(t => t.vehicle_type_id === tipoVehiculoId)?.nombre || 'Vehículo';
+        const infoTicket = {
+          codigo: result.data.codigo,
+          patente: patente || 'S/PATENTE',
+          tipo_vehiculo: vNombre,
+          fecha: new Date().toLocaleDateString('es-CL'),
+          hora: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          operador: user.nombre || 'Operador'
+        };
+        
+        setLastTicket(infoTicket);
+        setPatente('');
+        await cargarPendientes();
+        
+        // Lanzar impresión tras breve delay para renderizado
+        setTimeout(() => {
+          window.print();
+          setLastTicket(null);
+        }, 500);
+      } else {
+         alert(result.message || 'Error al procesar entrada. Verifique conexión.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error crítico de red. El ticket fue creado en nube? Reintente o refresque.');
+    } finally {
+      setImprimiendo(false);
     }
-    setImprimiendo(false);
+  };
+
+  const handleBuscarTicket = async (e) => {
+    if (e.key === 'Enter' && codigoBarraSalida) {
+      const resp = await getTicketInfo(codigoBarraSalida);
+      if (resp.success) {
+        setTicketEncontrado(resp.data);
+      } else {
+        alert(resp.message || 'Ticket no válido');
+        setTicketEncontrado(null);
+      }
+    }
+  };
+
+  const handlePagar = async (metodo) => {
+    if (!ticketEncontrado) return;
+    
+    const resp = await pagarTicket(ticketEncontrado.id, ticketEncontrado.total, ticketEncontrado.minutos);
+    if (resp.success) {
+      alert(`Pago exitoso (${metodo}). Registrando salida...`);
+      setTicketEncontrado(null);
+      setCodigoBarraSalida('');
+      await cargarPendientes();
+    } else {
+      alert(resp.message || 'Error al procesar el pago');
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col font-sans">
       {/* Header Corporativo (Menú Superior) */}
-      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md">
+      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md print:hidden">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-2 rounded-lg">
             <Car className="w-5 h-5 text-white" />
@@ -58,12 +154,15 @@ export default function Caseta() {
           <button onClick={() => navigate('/config')} className="text-slate-400 hover:text-white transition-colors px-2">Ajustes & Tarifas</button>
           <button className="text-slate-400 hover:text-white transition-colors px-2">Reportes (SII)</button>
           <button className="text-slate-400 hover:text-white transition-colors px-2">Audit. Borrados</button>
+          {user.perfil === 'SUPERADMIN' && (
+             <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-white transition-colors px-2 font-bold">👑 Panel Master SaaS</button>
+          )}
         </nav>
 
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-sm font-bold text-white">Juan Cajero</p>
-            <p className="text-xs text-slate-400">Turno Mañana</p>
+            <p className="text-sm font-bold text-white">{user.nombre || 'Admin'}</p>
+            <p className="text-xs text-slate-400 capitalize">{user.rol || 'Operador'}</p>
           </div>
           <button 
             onClick={() => setShowCambiarPass(true)}
@@ -79,7 +178,7 @@ export default function Caseta() {
       </header>
 
       {/* Grid Principal de 3 Columnas Exactamente como lo pidió el usuario */}
-      <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+      <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-full print:hidden">
 
         {/* ----------------- COLUMNA 1: ENTRADAS ----------------- */}
         <section className="lg:col-span-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
@@ -104,28 +203,21 @@ export default function Caseta() {
 
             <div>
               <label className="block text-sm text-slate-400 mb-2 font-medium">Tipo de Vehículo</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button 
-                  onClick={() => setTipoVehiculoId(1)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border ${tipoVehiculoId === 1 ? 'bg-cyan-900/50 border-cyan-400 text-cyan-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                >
-                  <Car className="w-8 h-8 mb-1" />
-                  <span className="text-xs font-bold">Auto</span>
-                </button>
-                <button 
-                  onClick={() => setTipoVehiculoId(2)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border ${tipoVehiculoId === 2 ? 'bg-cyan-900/50 border-cyan-400 text-cyan-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                >
-                  <Bike className="w-8 h-8 mb-1" />
-                  <span className="text-xs font-bold">Moto</span>
-                </button>
-                <button 
-                  onClick={() => setTipoVehiculoId(3)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border ${tipoVehiculoId === 3 ? 'bg-cyan-900/50 border-cyan-400 text-cyan-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                >
-                  <Truck className="w-8 h-8 mb-1" />
-                  <span className="text-xs font-bold">3/4</span>
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {tiposVehiculos.length === 0 ? (
+                  <div className="col-span-3 text-center text-slate-500 py-4"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-cyan-500" /> Cargando categorías...</div>
+                ) : (
+                  tiposVehiculos.filter(tv => tv.vehicle_active !== 0).slice(0,3).map(tv => (
+                    <button 
+                      key={tv.vehicle_type_id}
+                      onClick={() => setTipoVehiculoId(tv.vehicle_type_id)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border ${tipoVehiculoId === tv.vehicle_type_id ? 'bg-cyan-900/50 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)] scale-[1.02] transition-transform' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 transition-colors'}`}
+                    >
+                      {tv.nombre.toLowerCase().includes('moto') ? <Bike className="w-8 h-8 mb-1" /> : (tv.nombre.toLowerCase().includes('3/4') || tv.nombre.toLowerCase().includes('camioneta')) ? <Truck className="w-8 h-8 mb-1" /> : <Car className="w-8 h-8 mb-1" />}
+                      <span className="text-xs font-bold leading-tight">{tv.nombre}</span>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -165,6 +257,7 @@ export default function Caseta() {
                   placeholder="Escanee ticket..."
                   value={codigoBarraSalida}
                   onChange={(e) => setCodigoBarraSalida(e.target.value)}
+                  onKeyDown={handleBuscarTicket}
                 />
                 <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-amber-600/50" />
               </div>
@@ -174,19 +267,27 @@ export default function Caseta() {
             <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 space-y-3">
               <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded">
                 <span className="text-slate-400">Entrada:</span>
-                <span className="font-mono text-white text-lg">10:05:00</span>
+                <span className="font-mono text-white text-lg">
+                  {ticketEncontrado ? new Date(ticketEncontrado.entrada).toLocaleTimeString() : '--:--:--'}
+                </span>
               </div>
               <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded">
                 <span className="text-slate-400">Salida Local:</span>
-                <span className="font-mono text-cyan-400 text-lg">11:15:30</span>
+                <span className="font-mono text-cyan-400 text-lg">
+                  {ticketEncontrado ? new Date(ticketEncontrado.salida).toLocaleTimeString() : reloj}
+                </span>
               </div>
               <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded">
                 <span className="text-slate-400">T. Transcurrido:</span>
-                <span className="font-mono font-bold text-amber-400 text-lg flex items-center"><Clock className="w-4 h-4 mr-1"/> 70 Mins</span>
+                <span className="font-mono font-bold text-amber-400 text-lg flex items-center">
+                  <Clock className="w-4 h-4 mr-1"/> {ticketEncontrado ? ticketEncontrado.minutos : '0'} Mins
+                </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-slate-700/80">
-                <span className="text-slate-400">Tolerancia Aplicada:</span>
-                <span className="text-emerald-400 text-sm">0 Minutos</span>
+                <span className="text-slate-400">Vehículo:</span>
+                <span className="text-emerald-400 text-sm uppercase font-bold">
+                  {ticketEncontrado ? ticketEncontrado.tipo_vehiculo : '---'}
+                </span>
               </div>
             </div>
 
@@ -195,13 +296,25 @@ export default function Caseta() {
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 w-full rounded-2xl border-2 border-cyan-500/30 p-6 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.1)]">
                   <span className="text-slate-400 text-sm font-semibold mb-1 uppercase tracking-widest">Total a Pagar</span>
                   <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                    $ 3.500
+                    $ {ticketEncontrado ? Math.round(ticketEncontrado.total).toLocaleString('es-CL') : '0'}
                   </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                <button className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl">Efectivo (+ Boleta)</button>
-                <button className="bg-transparent border-2 border-slate-600 hover:border-slate-400 text-white font-bold py-3 rounded-xl transition-colors">Cobro Tarjeta</button>
+                <button 
+                  onClick={() => handlePagar('Efectivo')}
+                  disabled={!ticketEncontrado}
+                  className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all"
+                >
+                  Efectivo (+ Boleta)
+                </button>
+                <button 
+                  onClick={() => handlePagar('Tarjeta')}
+                  disabled={!ticketEncontrado}
+                  className="bg-transparent border-2 border-slate-600 hover:border-slate-400 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all"
+                >
+                  Cobro Tarjeta
+                </button>
               </div>
             </div>
 
@@ -276,8 +389,86 @@ export default function Caseta() {
 
       {/* Modal: Cambiar Contraseña */}
       {showCambiarPass && (
-        <CambiarPassword rut="cajero1" onClose={() => setShowCambiarPass(false)} />
+        <CambiarPassword rut={user.rut} onClose={() => setShowCambiarPass(false)} />
       )}
+
+      {/* TICKET IMPRIMIBLE (OCULTO EN PANTALLA, ACTIVO EN IMPRESORA) */}
+      {lastTicket && (
+        <div id="ticket-print" className="fixed top-0 left-0 bg-white text-black p-4 w-[58mm] md:w-[80mm] hidden print:block font-mono border border-black shadow-none">
+            <div className="text-center mb-2">
+                <h1 className="text-sm font-black uppercase leading-tight">{empresa?.ticket_razon_social || 'PARKING SYSTEM'}</h1>
+                <div className="flex justify-center my-2">
+                    <Car className="w-10 h-10" />
+                </div>
+                <h2 className="text-[10px] font-bold border-y border-dashed border-black py-1 my-1">TICKET DE INGRESO</h2>
+            </div>
+
+            <div className="text-[10px] space-y-1 mb-4">
+                <div className="flex justify-between font-bold text-sm">
+                    <span>PATENTE:</span>
+                    <span>{lastTicket.patente}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>VEHÍCULO:</span>
+                    <span>{lastTicket.tipo_vehiculo}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>FECHA:</span>
+                    <span>{lastTicket.fecha}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>HORA ENTRADA:</span>
+                    <span>{lastTicket.hora}</span>
+                </div>
+                <div className="flex justify-between border-t border-dotted border-black pt-1 mt-1 text-[8px]">
+                    <span>CAJERO:</span>
+                    <span>{lastTicket.operador}</span>
+                </div>
+            </div>
+
+            <div className="flex flex-col items-center mb-4">
+                <svg id="barcode-elem" className="w-full h-12"></svg>
+                <span className="text-[9px] mt-1 font-bold">{lastTicket.codigo}</span>
+            </div>
+
+            <div className="text-center text-[9px] border-t border-dashed border-black pt-2">
+                <p className="whitespace-pre-line leading-snug">
+                    {empresa?.ticket_observacion || 'Gracias por su preferencia.'}
+                </p>
+                <div className="mt-4 border-2 border-black inline-block px-4 py-1 font-black text-xs">
+                   DOCUMENTO NO VÁLIDO COMO BOLETA
+                </div>
+            </div>
+            
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white !important;
+            }
+            #ticket-print {
+                display: block !important;
+                position: static !important;
+                width: 100% !important;
+                max-width: 80mm;
+                margin: 0 auto;
+                padding: 5mm;
+                visibility: visible !important;
+            }
+            #ticket-print * {
+                visibility: visible !important;
+            }
+            @page {
+                margin: 0;
+                size: auto;
+            }
+        }
+      `}</style>
+
     </div>
   );
 }

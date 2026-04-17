@@ -4,7 +4,7 @@ import {
   Building2, Users, TicketCheck, TrendingUp, Plus, LogOut,
   ShieldCheck, CheckCircle2, XCircle, Loader2, X, Globe, KeyRound
 } from 'lucide-react';
-import { getEmpresas } from '../services/api';
+import { getEmpresas, crearEmpresa } from '../services/api';
 import CambiarPassword from './CambiarPassword';
 
 const KpiCard = ({ icon: Icon, label, value, color, suffix = '' }) => (
@@ -41,19 +41,36 @@ export default function MasterPanel() {
 
   const cargarEmpresas = async () => {
     setLoading(true);
-    const resp = await getEmpresas();
-    if (resp.success && resp.data) setEmpresas(resp.data);
+    try {
+      const resp = await getEmpresas();
+      if (resp.success && resp.data) {
+        const rawData = Array.isArray(resp.data) ? resp.data : [resp.data];
+        const dataSegura = rawData.map(e => ({
+          ...e,
+          rut_contacto: e.rut_contacto || 'No especificado',
+          plan: e.plan || 'Premium',
+          estado: e.estado || 'Activo'
+        }));
+        setEmpresas(dataSegura);
+      }
+    } catch (error) {
+      console.error(error);
+      setEmpresas([]);
+    }
     setLoading(false);
   };
 
   const handleCrearEmpresa = async (e) => {
     e.preventDefault();
     setGuardando(true);
-    await new Promise(r => setTimeout(r, 900)); // Simula latencia API
-    const id = empresas.length + 1;
-    setEmpresas(prev => [...prev, { id, ...nuevaEmpresa, estado: 'Activo' }]);
-    setNuevaEmpresa({ nombre: '', rut_contacto: '', plan: 'Básico' });
-    setShowModal(false);
+    const resp = await crearEmpresa(nuevaEmpresa);
+    if (resp.success) {
+      await cargarEmpresas();
+      setNuevaEmpresa({ nombre: '', rut_contacto: '', plan: 'Básico' });
+      setShowModal(false);
+    } else {
+      alert("Error al crear empresa: " + (resp.message || ""));
+    }
     setGuardando(false);
   };
 
