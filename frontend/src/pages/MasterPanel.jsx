@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, Users, TicketCheck, TrendingUp, Plus, LogOut,
-  ShieldCheck, CheckCircle2, XCircle, Loader2, X, Globe, KeyRound
+  ShieldCheck, CheckCircle2, XCircle, Loader2, X, Globe, KeyRound, Menu
 } from 'lucide-react';
 import { getEmpresas, crearEmpresa } from '../services/api';
 import CambiarPassword from './CambiarPassword';
@@ -32,6 +32,7 @@ export default function MasterPanel() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showCambiarPass, setShowCambiarPass] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [nuevaEmpresa, setNuevaEmpresa] = useState({ nombre: '', rut_contacto: '', plan: 'Básico' });
   const [guardando, setGuardando] = useState(false);
 
@@ -86,21 +87,21 @@ export default function MasterPanel() {
     <div className="min-h-screen bg-[#0a0a14] text-slate-200 flex flex-col font-sans">
 
       {/* Header Maestro */}
-      <header className="border-b border-purple-900/40 bg-[#0d0d1f]/90 backdrop-blur-xl p-4 flex justify-between items-center shadow-[0_4px_40px_rgba(139,92,246,0.08)]">
+      <header className="border-b border-purple-900/40 bg-[#0d0d1f]/90 backdrop-blur-xl p-4 flex justify-between items-center shadow-[0_4px_40px_rgba(139,92,246,0.08)] relative z-50">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-br from-purple-600 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-purple-900/50">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-black tracking-tight">
+            <h1 className="text-xl font-black tracking-tight">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-amber-400">AutoTicket</span>
               <span className="text-white ml-1">MASTER</span>
             </h1>
-            <p className="text-xs text-purple-400/70 font-medium tracking-wider uppercase">Centro de Control SaaS</p>
+            <p className="text-[10px] sm:text-xs text-purple-400/70 font-medium tracking-wider uppercase">Centro de Control SaaS</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden md:flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-1.5">
             <Globe className="w-4 h-4 text-amber-400" />
             <span className="text-amber-300 text-xs font-bold">Creador de Plataforma</span>
@@ -108,18 +109,43 @@ export default function MasterPanel() {
           <button
             onClick={() => setShowCambiarPass(true)}
             title="Cambiar contraseña"
-            className="p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
+            className="hidden sm:block p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
           >
             <KeyRound className="w-5 h-5" />
           </button>
           <button
             onClick={() => navigate('/')}
-            className="p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700"
+            className="hidden sm:block p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700"
+            title="Salir"
           >
             <LogOut className="w-5 h-5" />
           </button>
+          <button 
+            onClick={() => setShowMenu(!showMenu)} 
+            className="md:hidden p-2 bg-slate-800 hover:bg-cyan-500/20 text-slate-300 rounded-lg border border-slate-700 transition-all"
+          >
+            {showMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </header>
+
+      {/* Menú Móvil Master */}
+      {showMenu && (
+        <div className="md:hidden bg-slate-900 border-b border-purple-900/40 absolute w-full top-[80px] z-40 shadow-xl">
+          <nav className="flex flex-col px-4 py-4 gap-4">
+            <div className="flex bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 items-center gap-3">
+               <Globe className="w-5 h-5 text-amber-400" />
+               <div>
+                  <h3 className="text-sm font-bold text-amber-300">Administrador Global</h3>
+                  <p className="text-xs text-amber-500/70">Creador de Plataforma</p>
+               </div>
+            </div>
+            <button onClick={() => { setShowMenu(false); navigate('/caseta'); }} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors">Volver a Caseta (Caja)</button>
+            <button onClick={() => setShowCambiarPass(true)} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors flex items-center gap-2"><KeyRound className="w-4 h-4" /> Cambiar Admin Pass</button>
+            <button onClick={() => { navigate('/'); }} className="text-red-400 hover:text-white font-medium text-left px-2 py-2 transition-colors flex items-center gap-2"><LogOut className="w-4 h-4" /> Cerrar Sesión</button>
+          </nav>
+        </div>
+      )}
 
       <main className="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full">
 
@@ -156,8 +182,8 @@ export default function MasterPanel() {
               <p>Cargando empresas desde cPanel...</p>
             </div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-sm min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-900/80 text-xs uppercase text-slate-500 border-b border-slate-800">
                     <th className="px-6 py-3">ID</th>

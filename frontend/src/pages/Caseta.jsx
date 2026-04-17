@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound, MapPin, CreditCard, Banknote } from 'lucide-react';
+import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound, MapPin, CreditCard, Banknote, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getTicketsPendientes, crearTicket, getTicketInfo, pagarTicket, getEmpresaConfig, getTarifas } from '../services/api';
 import CambiarPassword from './CambiarPassword';
@@ -19,6 +19,7 @@ export default function Caseta() {
   const [empresa, setEmpresa] = useState(null);
   const [lastTicket, setLastTicket] = useState(null);
   const [mensaje, setMensaje] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Datos reales del usuario y pendientes
   const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
@@ -139,46 +140,77 @@ export default function Caseta() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col font-sans">
       {/* Header Corporativo (Menú Superior) */}
-      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md print:hidden">
+      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md print:hidden relative z-50">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-2 rounded-lg">
             <Car className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            Caja Web Central
+            Caja Web
           </h1>
         </div>
         
+        {/* Navegación Desktop */}
         <nav className="hidden md:flex flex-1 mx-8 justify-center gap-6">
           <button className="text-cyan-400 font-semibold border-b-2 border-cyan-400 pb-1 px-2">Caja Principal</button>
           <button onClick={() => navigate('/config')} className="text-slate-400 hover:text-white transition-colors px-2">Ajustes & Tarifas</button>
           <button className="text-slate-400 hover:text-white transition-colors px-2">Reportes (SII)</button>
           <button className="text-slate-400 hover:text-white transition-colors px-2">Audit. Borrados</button>
           {user.perfil === 'SUPERADMIN' && (
-             <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-white transition-colors px-2 font-bold">👑 Panel Master SaaS</button>
+             <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-white transition-colors px-2 font-bold flex items-center gap-1">👑 Panel Master SaaS</button>
           )}
         </nav>
 
-        <div className="flex items-center gap-4">
-          <div className="text-right">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="hidden sm:block text-right">
             <p className="text-sm font-bold text-white">{user.nombre || 'Admin'}</p>
             <p className="text-xs text-slate-400 capitalize">{user.rol || 'Operador'}</p>
           </div>
           <button 
             onClick={() => setShowCambiarPass(true)}
             title="Cambiar contraseña"
-            className="p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
+            className="hidden sm:block p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
           >
             <KeyRound className="w-5 h-5" />
           </button>
-          <button onClick={() => { localStorage.removeItem('autoticket_user'); navigate('/'); }} className="p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700">
+          <button onClick={() => { localStorage.removeItem('autoticket_user'); navigate('/'); }} className="p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700" title="Cerrar Sessión">
             <LogOut className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => setShowMenu(!showMenu)} 
+            className="md:hidden p-2 bg-slate-800 hover:bg-cyan-500/20 text-slate-300 rounded-lg border border-slate-700 transition-all"
+          >
+            {showMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
 
+      {/* Menú Móvil */}
+      {showMenu && (
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 absolute w-full top-[73px] z-40 shadow-xl print:hidden">
+          <nav className="flex flex-col px-4 py-4 gap-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
+                <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-cyan-500 flex items-center justify-center font-bold text-cyan-400 uppercase">
+                    {(user.nombre || 'A').charAt(0)}
+                </div>
+                <div>
+                    <h3 className="text-sm font-bold text-white">{user.nombre || 'Admin'}</h3>
+                    <p className="text-xs text-cyan-400 uppercase tracking-widest">{user.perfil || 'Operador'}</p>
+                </div>
+            </div>
+            <button onClick={() => { setShowMenu(false); }} className="text-cyan-400 font-bold text-left px-2 py-2 bg-cyan-900/20 rounded-lg border border-cyan-900/50">Caja Principal</button>
+            <button onClick={() => { setShowMenu(false); navigate('/config'); }} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors">Ajustes & Tarifas</button>
+            <button className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors">Reportes Diarios (Cierre)</button>
+            <button onClick={() => setShowCambiarPass(true)} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors flex items-center gap-2"><KeyRound className="w-4 h-4" /> Cambiar Contraseña</button>
+            {user.perfil === 'SUPERADMIN' && (
+               <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-purple-300 font-bold text-left px-2 py-2 transition-colors bg-purple-900/10 rounded-lg border border-purple-900/30">👑 Ir Panel Master SaaS</button>
+            )}
+          </nav>
+        </div>
+      )}
+
       {/* Grid Principal de 3 Columnas Exactamente como lo pidió el usuario */}
-      <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-full print:hidden">
+      <main className="flex-1 p-2 md:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-full print:hidden">
 
         {/* ----------------- COLUMNA 1: ENTRADAS ----------------- */}
         <section className="lg:col-span-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
@@ -252,8 +284,7 @@ export default function Caseta() {
               <div className="relative">
                 <input 
                   type="text" 
-                  autoFocus
-                  className="w-full pl-4 pr-12 py-4 text-xl font-mono bg-amber-950/20 border-2 border-amber-600/50 rounded-xl focus:outline-none focus:border-amber-500 transition-all text-amber-100 placeholder-amber-900/50 shadow-inner"
+                  className="w-full pl-4 pr-12 py-4 text-lg md:text-xl font-mono bg-amber-950/20 border-2 border-amber-600/50 rounded-xl focus:outline-none focus:border-amber-500 transition-all text-amber-100 placeholder-amber-900/50 shadow-inner"
                   placeholder="Escanee ticket..."
                   value={codigoBarraSalida}
                   onChange={(e) => setCodigoBarraSalida(e.target.value)}
@@ -300,7 +331,7 @@ export default function Caseta() {
                   </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 w-full mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full mt-2">
                 <button 
                   onClick={() => handlePagar('Efectivo')}
                   disabled={!ticketEncontrado}
@@ -344,7 +375,7 @@ export default function Caseta() {
               </div>
           </div>
 
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-x-auto">
             {loadingGrid ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
                 <Loader2 className="w-8 h-8 animate-spin mb-2 text-cyan-500" />
@@ -352,15 +383,15 @@ export default function Caseta() {
               </div>
             ) : (
               <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-900/80 text-xs uppercase text-slate-500 sticky top-0">
+                <thead className="bg-slate-900/80 text-[10px] md:text-xs uppercase text-slate-500 sticky top-0 whitespace-nowrap">
                   <tr>
-                    <th className="px-4 py-3">Ticket</th>
-                    <th className="px-4 py-3">Patente</th>
-                    <th className="px-4 py-3">Entrada</th>
-                    <th className="px-4 py-3 text-right">Tarifa (Ref)</th>
+                    <th className="px-3 md:px-4 py-3">Ticket</th>
+                    <th className="px-3 md:px-4 py-3">Patente</th>
+                    <th className="px-3 md:px-4 py-3">Entrada</th>
+                    <th className="px-3 md:px-4 py-3 text-right">Tarifa</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 font-mono">
+                <tbody className="divide-y divide-slate-800 font-mono text-xs md:text-sm whitespace-nowrap">
                   {pendientes.length === 0 && (
                     <tr>
                       <td colSpan="4" className="text-center py-6 text-slate-500">No hay autos pendientes</td>
@@ -368,10 +399,10 @@ export default function Caseta() {
                   )}
                   {pendientes.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-800/80 transition-colors cursor-pointer group">
-                      <td className="px-4 py-3 text-cyan-400">{p.id}</td>
-                      <td className="px-4 py-3">{p.patente || 'S/P'}</td>
-                      <td className="px-4 py-3 text-slate-400">{p.entrada}</td>
-                      <td className="px-4 py-3 text-right text-emerald-400/70 group-hover:text-emerald-400">{p.tarifaCalc}</td>
+                      <td className="px-3 md:px-4 py-3 text-cyan-400">{p.id}</td>
+                      <td className="px-3 md:px-4 py-3">{p.patente || 'S/P'}</td>
+                      <td className="px-3 md:px-4 py-3 text-slate-400">{p.entrada}</td>
+                      <td className="px-3 md:px-4 py-3 text-right text-emerald-400/70 group-hover:text-emerald-400">{p.tarifaCalc}</td>
                     </tr>
                   ))}
                 </tbody>

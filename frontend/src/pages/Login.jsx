@@ -42,7 +42,7 @@ export default function Login() {
 
       {/* Login Card */}
       <div className="z-10 w-full max-w-md relative">
-        <div className="p-10 rounded-3xl w-full border border-slate-700/50 shadow-[0_0_50px_rgba(37,99,235,0.1)] relative overflow-hidden text-center bg-slate-900/60 backdrop-blur-xl">
+        <div className="p-6 sm:p-10 rounded-3xl w-full border border-slate-700/50 shadow-[0_0_50px_rgba(37,99,235,0.1)] relative overflow-hidden text-center bg-slate-900/60 backdrop-blur-xl">
             
             {/* Top accent line */}
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-blue-600"></div>
@@ -51,7 +51,7 @@ export default function Login() {
                 <CarFront className="w-12 h-12 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
             </div>
 
-            <h1 className="text-3xl font-bold mb-2 tracking-tight">Auto<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Ticket</span> SaaS</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Auto<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Ticket</span> SaaS</h1>
             <p className="text-slate-400 text-sm mb-8 font-medium">Panel Administrativo y de Control</p>
 
             <form className="space-y-5" onSubmit={handleLogin}>
@@ -62,7 +62,7 @@ export default function Login() {
                     <input 
                         type="text" 
                         required
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all placeholder-slate-500 text-slate-100 font-medium"
+                        className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all placeholder-slate-500 text-slate-100 font-medium"
                         placeholder="RUT / ID Empleado"
                         value={rut}
                         onChange={(e) => setRut(e.target.value)}
@@ -76,7 +76,7 @@ export default function Login() {
                     <input 
                         type="password" 
                         required
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all placeholder-slate-500 text-slate-100 font-medium"
+                        className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-800/80 border border-slate-700 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all placeholder-slate-500 text-slate-100 font-medium"
                         placeholder="Contraseña"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -86,7 +86,7 @@ export default function Login() {
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] transform hover:-translate-y-0.5 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 sm:py-4 px-6 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] transform hover:-translate-y-0.5 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'AUTENTICANDO...' : 'INICIAR SESIÓN'}
                   {!loading && <ArrowRight className="w-5 h-5" />}

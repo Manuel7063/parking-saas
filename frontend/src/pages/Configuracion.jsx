@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Save, Settings, Users, Percent, FileText, KeyRound, Loader2, CheckCircle2, AlertCircle, History, Trash2, BarChart3, TrendingUp, Wallet } from 'lucide-react';
+import { LogOut, Save, Settings, Users, Percent, FileText, KeyRound, Loader2, CheckCircle2, AlertCircle, History, Trash2, BarChart3, TrendingUp, Wallet, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getTarifas, saveTarifas, getHistorialTickets, deleteTicket, getReporteDiario, getEmpresaConfig, updateEmpresaConfig, getUsuarios, crearUsuario, eliminarUsuario } from '../services/api';
 import CambiarPassword from './CambiarPassword';
@@ -11,6 +11,7 @@ export default function Configuracion() {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
   
   // Estado general
   const [tarifas, setTarifas] = useState([]);
@@ -173,13 +174,13 @@ export default function Configuracion() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col font-sans">
       {/* Header Corporativo */}
-      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md">
+      <header className="bg-slate-950 border-b border-slate-800 p-4 flex justify-between items-center shadow-md relative z-50">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-2 rounded-lg">
             <Settings className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            Administración SaaS
+            Ajustes SaaS
           </h1>
         </div>
         
@@ -188,23 +189,54 @@ export default function Configuracion() {
           <button className="text-cyan-400 font-semibold border-b-2 border-cyan-400 pb-1 px-2">Ajustes & Tarifas</button>
           <button className="text-slate-400 hover:text-white transition-colors px-2">Reportes (SII)</button>
           {user.perfil === 'SUPERADMIN' && (
-             <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-white transition-colors px-2 font-bold">👑 Panel Master SaaS</button>
+             <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-white transition-colors px-2 font-bold flex items-center gap-1">👑 Panel Master SaaS</button>
           )}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <button 
             onClick={() => setShowCambiarPass(true)}
             title="Cambiar contraseña"
-            className="p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
+            className="hidden sm:block p-2 bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg transition-all border border-slate-700"
           >
             <KeyRound className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate('/')} className="p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700">
+          <button onClick={() => navigate('/')} className="hidden sm:block p-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all border border-slate-700">
             <LogOut className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => setShowMenu(!showMenu)} 
+            className="md:hidden p-2 bg-slate-800 hover:bg-cyan-500/20 text-slate-300 rounded-lg border border-slate-700 transition-all"
+          >
+            {showMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
+
+      {/* Menú Móvil */}
+      {showMenu && (
+        <div className="md:hidden bg-slate-900 border-b border-slate-800 absolute w-full top-[73px] z-40 shadow-xl">
+          <nav className="flex flex-col px-4 py-4 gap-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
+                <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-cyan-500 flex items-center justify-center font-bold text-cyan-400 uppercase">
+                    {(user.nombre || 'A').charAt(0)}
+                </div>
+                <div>
+                    <h3 className="text-sm font-bold text-white">{user.nombre || 'Admin'}</h3>
+                    <p className="text-xs text-cyan-400 uppercase tracking-widest">{user.perfil || 'Operador'}</p>
+                </div>
+            </div>
+            <button onClick={() => { setShowMenu(false); navigate('/caseta'); }} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors">Caja Principal</button>
+            <button onClick={() => { setShowMenu(false); }} className="text-cyan-400 font-bold text-left px-2 py-2 bg-cyan-900/20 rounded-lg border border-cyan-900/50">Ajustes & Tarifas</button>
+            <button className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors">Reportes Diarios (Cierre)</button>
+            <button onClick={() => setShowCambiarPass(true)} className="text-slate-400 hover:text-white font-medium text-left px-2 py-2 transition-colors flex items-center gap-2"><KeyRound className="w-4 h-4" /> Cambiar Contraseña</button>
+            <button onClick={() => { navigate('/'); }} className="text-red-400 hover:text-white font-medium text-left px-2 py-2 transition-colors flex items-center gap-2"><LogOut className="w-4 h-4" /> Cerrar Sesión</button>
+            {user.perfil === 'SUPERADMIN' && (
+               <button onClick={() => navigate('/master')} className="text-purple-400 hover:text-purple-300 font-bold text-left px-2 py-2 transition-colors bg-purple-900/10 rounded-lg border border-purple-900/30">👑 Ir Panel Master SaaS</button>
+            )}
+          </nav>
+        </div>
+      )}
 
       <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
         {mensaje && (
@@ -214,12 +246,12 @@ export default function Configuracion() {
           </div>
         )}
 
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm flex min-h-[700px]">
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm flex flex-col md:flex-row min-h-[700px]">
           
           {/* Sidebar Tabs */}
-          <aside className="w-64 border-r border-slate-700 bg-slate-900/50">
-            <nav className="flex flex-col p-4 gap-2">
-              <button onClick={() => setActiveTab('tarifas')} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${activeTab === 'tarifas' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:bg-slate-800'}`}>
+          <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-700 bg-slate-900/50">
+            <nav className="flex flex-row md:flex-col p-4 gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
+              <button onClick={() => setActiveTab('tarifas')} className={`flex items-center gap-2 md:gap-3 p-3 rounded-xl transition-all ${activeTab === 'tarifas' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:bg-slate-800'}`}>
                 <Percent className="w-5 h-5" />
                 <span className="font-medium">Tarifario de Vehículos</span>
               </button>
@@ -243,7 +275,7 @@ export default function Configuracion() {
           </aside>
 
           {/* Tab Content */}
-          <section className="flex-1 p-8 bg-slate-800/20">
+          <section className="flex-1 p-4 md:p-8 bg-slate-800/20 overflow-x-hidden w-full">
             {activeTab === 'tarifas' && (
               <div className="animate-in fade-in duration-300">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
@@ -382,8 +414,8 @@ export default function Configuracion() {
                      </div>
 
                      <div className="lg:col-span-2">
-                        <div className="bg-slate-900 border border-slate-700 overflow-hidden rounded-2xl shadow-xl">
-                           <table className="w-full text-left text-sm text-slate-300">
+                        <div className="bg-slate-900 border border-slate-700 overflow-x-auto rounded-2xl shadow-xl w-full">
+                           <table className="w-full text-left text-sm text-slate-300 min-w-[500px]">
                              <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-bold">
                                <tr>
                                  <th className="px-4 py-3">RUT</th>
@@ -573,8 +605,8 @@ export default function Configuracion() {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-auto bg-slate-900/50 rounded-2xl border border-slate-700/50 min-h-[400px]">
-                    <table className="w-full text-left text-sm border-collapse">
+                  <div className="flex-1 overflow-x-auto bg-slate-900/50 rounded-2xl border border-slate-700/50 min-h-[400px] w-full">
+                    <table className="w-full text-left text-sm border-collapse min-w-[800px]">
                       <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-bold sticky top-0">
                         <tr>
                           <th className="px-6 py-4">ID Ticket</th>
