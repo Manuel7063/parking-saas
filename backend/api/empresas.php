@@ -18,7 +18,7 @@ $empresa_id = isset($_GET['id']) ? $_GET['id'] : 1;
 
 if ($method === 'GET') {
     if (isset($_GET['todos'])) {
-        $stmt = $db->query("SELECT id, nombre, 'No registrado' as rut_contacto, 'Activo' as estado, 'Premium' as plan FROM empresas ORDER BY id DESC");
+        $stmt = $db->query("SELECT id, nombre, rut_empresa, rut_contacto, plan, estado FROM empresas ORDER BY id DESC");
         $all = $stmt->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(["success" => true, "data" => $all]);
         exit;
@@ -41,10 +41,13 @@ if ($method === 'POST') {
     
     // Crear una nueva empresa si la acción lo determina
     if (isset($data->accion) && $data->accion === 'crear') {
-        $query = "INSERT INTO empresas (nombre, ticket_razon_social, ticket_observacion) VALUES (:nombre, :nombre2, 'LUNES A SABADO 09:00 A 20:00 HRS')";
+        $query = "INSERT INTO empresas (nombre, rut_empresa, rut_contacto, ticket_razon_social, ticket_observacion) 
+                  VALUES (:nombre, :rut_e, :rut_c, :nombre2, 'LUNES A SABADO 09:00 A 20:00 HRS')";
         $stmt = $db->prepare($query);
         $success = $stmt->execute([
             ':nombre' => $data->nombre,
+            ':rut_e'  => isset($data->rut_empresa) ? $data->rut_empresa : NULL,
+            ':rut_c'  => isset($data->rut_contacto) ? $data->rut_contacto : NULL,
             ':nombre2' => $data->nombre
         ]);
         if ($success) {
@@ -52,7 +55,7 @@ if ($method === 'POST') {
             
             // AHORA SÍ: Crear automáticamente el usuario ADMIN
             $rut = isset($data->rut_contacto) ? $data->rut_contacto : '11111111-1';
-            $clave = 'Admin1234';
+            $clave = isset($data->clave_admin) ? $data->clave_admin : 'Admin1234';
             $hash = password_hash($clave, PASSWORD_BCRYPT);
             
             $queryUser = "INSERT INTO usuarios (rut, nombre, clave_hash, perfil, empresa_id, activo) 
@@ -89,13 +92,17 @@ if ($method === 'POST') {
     if (!empty($data->id)) {
         $query = "UPDATE empresas SET 
                   ticket_razon_social = :razon, 
-                  ticket_observacion = :obs 
+                  ticket_observacion = :obs,
+                  rut_empresa = :rut_e,
+                  rut_contacto = :rut_c 
                   WHERE id = :id";
         
         $stmt = $db->prepare($query);
         $success = $stmt->execute([
             ':razon' => $data->ticket_razon_social,
             ':obs' => $data->ticket_observacion,
+            ':rut_e' => isset($data->rut_empresa) ? $data->rut_empresa : NULL,
+            ':rut_c' => isset($data->rut_contacto) ? $data->rut_contacto : NULL,
             ':id' => $data->id
         ]);
         

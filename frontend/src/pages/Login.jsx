@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { CarFront, Lock, User, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
 export default function Login() {
   const [rut, setRut] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
+  const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'DESARROLLO';
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -94,9 +94,12 @@ export default function Login() {
             </form>
             
             <div className="mt-8 text-center border-t border-slate-800 pt-6">
-                <p className="text-slate-500 text-xs flex justify-center items-center gap-2">
+                <p className="text-slate-500 text-xs flex justify-center items-center gap-2 mb-1">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                     Sistema Multi-tenant Online
+                </p>
+                <p className="text-slate-600 text-[10px] uppercase tracking-widest font-bold">
+                    Versión {version}
                 </p>
             </div>
         </div>

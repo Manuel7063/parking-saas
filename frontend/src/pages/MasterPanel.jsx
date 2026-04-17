@@ -33,8 +33,10 @@ export default function MasterPanel() {
   const [showModal, setShowModal] = useState(false);
   const [showCambiarPass, setShowCambiarPass] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [nuevaEmpresa, setNuevaEmpresa] = useState({ nombre: '', rut_contacto: '', plan: 'Básico' });
+  const [nuevaEmpresa, setNuevaEmpresa] = useState({ nombre: '', rut_empresa: '', rut_contacto: '', clave_admin: '', plan: 'Básico' });
   const [guardando, setGuardando] = useState(false);
+  const [exitoData, setExitoData] = useState(null); // Para mostrar RUT/Clave tras crear
+  const userSession = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
 
   useEffect(() => {
     cargarEmpresas();
@@ -48,6 +50,7 @@ export default function MasterPanel() {
         const rawData = Array.isArray(resp.data) ? resp.data : [resp.data];
         const dataSegura = rawData.map(e => ({
           ...e,
+          rut_empresa: e.rut_empresa || 'S/R',
           rut_contacto: e.rut_contacto || 'No especificado',
           plan: e.plan || 'Premium',
           estado: e.estado || 'Activo'
@@ -67,8 +70,8 @@ export default function MasterPanel() {
     const resp = await crearEmpresa(nuevaEmpresa);
     if (resp.success) {
       await cargarEmpresas();
-      setNuevaEmpresa({ nombre: '', rut_contacto: '', plan: 'Básico' });
-      setShowModal(false);
+      setExitoData({ rut: nuevaEmpresa.rut_contacto, clave: nuevaEmpresa.clave_admin || 'Admin1234' });
+      setNuevaEmpresa({ nombre: '', rut_empresa: '', rut_contacto: '', clave_admin: '', plan: 'Básico' });
     } else {
       alert("Error al crear empresa: " + (resp.message || ""));
     }
@@ -187,8 +190,9 @@ export default function MasterPanel() {
                 <thead>
                   <tr className="bg-slate-900/80 text-xs uppercase text-slate-500 border-b border-slate-800">
                     <th className="px-6 py-3">ID</th>
-                    <th className="px-6 py-3">Nombre de la Empresa</th>
-                    <th className="px-6 py-3">RUT Contacto</th>
+                    <th className="px-6 py-3">Nombre / Empresa</th>
+                    <th className="px-6 py-3 text-center">RUT Legal</th>
+                    <th className="px-6 py-3 text-center">RUT Contacto</th>
                     <th className="px-6 py-3">Plan</th>
                     <th className="px-6 py-3 text-center">Estado</th>
                     <th className="px-6 py-3 text-center">Acción</th>
@@ -206,7 +210,8 @@ export default function MasterPanel() {
                     <tr key={emp.id} className="hover:bg-slate-800/40 transition-colors group">
                       <td className="px-6 py-4 text-purple-400 font-bold">#{String(emp.id).padStart(3, '0')}</td>
                       <td className="px-6 py-4 text-white font-semibold font-sans">{emp.nombre}</td>
-                      <td className="px-6 py-4 text-slate-400">{emp.rut_contacto}</td>
+                      <td className="px-6 py-4 text-center text-slate-300">{emp.rut_empresa}</td>
+                      <td className="px-6 py-4 text-center text-slate-400">{emp.rut_contacto}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold border ${emp.plan === 'Premium' ? 'bg-amber-900/30 text-amber-400 border-amber-700/50' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
                           {emp.plan}
@@ -244,55 +249,109 @@ export default function MasterPanel() {
             <h2 className="text-xl font-black text-white mb-1">Registrar Nueva Empresa</h2>
             <p className="text-slate-500 text-sm mb-6">Se creará un inquilino nuevo en tu plataforma SaaS.</p>
 
-            <form onSubmit={handleCrearEmpresa} className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">Nombre del Estacionamiento</label>
-                <input
-                  required
-                  type="text"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
-                  placeholder="Ej: Parking Las Condes"
-                  value={nuevaEmpresa.nombre}
-                  onChange={e => setNuevaEmpresa(p => ({ ...p, nombre: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">RUT Contacto</label>
-                <input
-                  required
-                  type="text"
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
-                  placeholder="Ej: 12.345.678-9"
-                  value={nuevaEmpresa.rut_contacto}
-                  onChange={e => setNuevaEmpresa(p => ({ ...p, rut_contacto: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">Plan Contratado</label>
-                <select
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all"
-                  value={nuevaEmpresa.plan}
-                  onChange={e => setNuevaEmpresa(p => ({ ...p, plan: e.target.value }))}
+            {exitoData ? (
+              <div className="text-center py-4 animate-fadeIn">
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 mb-6">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+                  <h3 className="text-emerald-400 font-bold text-lg">¡Empresa Registrada!</h3>
+                  <p className="text-slate-400 text-sm mt-1">Entregue estas credenciales al dueño:</p>
+                  
+                  <div className="mt-5 space-y-3">
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1 text-left">Usuario (RUT Contacto)</p>
+                      <p className="text-white font-mono text-lg text-left">{exitoData.rut}</p>
+                    </div>
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-left">
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Contraseña Inicial</p>
+                      <p className="text-amber-400 font-mono text-lg">{exitoData.clave}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => { setShowModal(false); setExitoData(null); }}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all"
                 >
-                  <option value="Básico">Básico</option>
-                  <option value="Premium">Premium</option>
-                </select>
+                  Entendido y Cerrar
+                </button>
               </div>
+            ) : (
+              <form onSubmit={handleCrearEmpresa} className="space-y-4">
+                <div>
+                  <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">Nombre del Estacionamiento</label>
+                  <input
+                    required
+                    type="text"
+                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
+                    placeholder="Ej: Parking Las Condes"
+                    value={nuevaEmpresa.nombre}
+                    onChange={e => setNuevaEmpresa(p => ({ ...p, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">RUT Empresa (Legal)</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
+                      placeholder="76.xxx.xxx-x"
+                      value={nuevaEmpresa.rut_empresa}
+                      onChange={e => setNuevaEmpresa(p => ({ ...p, rut_empresa: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">RUT Contacto (Admin)</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
+                      placeholder="12.xxx.xxx-x"
+                      value={nuevaEmpresa.rut_contacto}
+                      onChange={e => setNuevaEmpresa(p => ({ ...p, rut_contacto: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">Clave Administrador</label>
+                    <input
+                      required
+                      type="password"
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all placeholder-slate-600"
+                      placeholder="Ej: Admin1234"
+                      value={nuevaEmpresa.clave_admin}
+                      onChange={e => setNuevaEmpresa(p => ({ ...p, clave_admin: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 block">Plan</label>
+                    <select
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all"
+                      value={nuevaEmpresa.plan}
+                      onChange={e => setNuevaEmpresa(p => ({ ...p, plan: e.target.value }))}
+                    >
+                      <option value="Básico">Básico</option>
+                      <option value="Premium">Premium</option>
+                    </select>
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                disabled={guardando}
-                className="w-full bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black py-3.5 rounded-xl mt-2 transition-all shadow-lg shadow-purple-900/40 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {guardando ? <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</> : <><Plus className="w-5 h-5" /> Crear Empresa</>}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="w-full bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black py-3.5 rounded-xl mt-2 transition-all shadow-lg shadow-purple-900/40 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {guardando ? <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</> : <><Plus className="w-5 h-5" /> Crear Empresa</>}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
       {/* Modal: Cambiar Contraseña */}
       {showCambiarPass && (
-        <CambiarPassword rut="superadmin" onClose={() => setShowCambiarPass(false)} />
+        <CambiarPassword rut={userSession.rut || 'superadmin'} onClose={() => setShowCambiarPass(false)} />
       )}
     </div>
   );

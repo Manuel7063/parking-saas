@@ -51,8 +51,9 @@ if (!password_verify($data->password, $row['clave_hash'])) {
 // Login exitoso - devolver perfil para que React redirija
 echo json_encode([
     "success"    => true,
-    "perfil"     => $usuario['perfil'],   // 'SUPERADMIN', 'ADMIN' o 'CAJERO'
+    "perfil"     => $usuario['perfil'],
     "nombre"     => $usuario['nombre'],
+    "rut"        => $data->rut,
     "empresa_id" => $usuario['empresa_id'],
     "usuario_id" => $usuario['id']
 ]);

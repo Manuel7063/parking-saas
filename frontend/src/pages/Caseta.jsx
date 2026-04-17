@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound, MapPin, CreditCard, Banknote, Menu, X } from 'lucide-react';
+import { LogOut, Printer, Search, Car, Bike, Truck, Calculator, Clock, CheckCircle2, AlertCircle, Loader2, KeyRound, MapPin, CreditCard, Banknote, Menu, X, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getTicketsPendientes, crearTicket, getTicketInfo, pagarTicket, getEmpresaConfig, getTarifas } from '../services/api';
 import CambiarPassword from './CambiarPassword';
+import BarcodeScanner from './BarcodeScanner';
 
 export default function Caseta() {
   const navigate = useNavigate();
@@ -20,6 +21,11 @@ export default function Caseta() {
   const [lastTicket, setLastTicket] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
+  // Detectar si es dispositivo móvil o tablet
+  const isMobile = /Android|iPhone|iPad|iPod|Tablet|Mobile/i.test(navigator.userAgent)
+    || window.matchMedia('(pointer: coarse)').matches;
 
   // Datos reales del usuario y pendientes
   const user = JSON.parse(localStorage.getItem('autoticket_user') || '{}');
@@ -111,17 +117,42 @@ export default function Caseta() {
     }
   };
 
-  const handleBuscarTicket = async (e) => {
-    if (e.key === 'Enter' && codigoBarraSalida) {
-      const resp = await getTicketInfo(codigoBarraSalida);
+  const efectuarBusqueda = async (codigo) => {
+    if (!codigo) return;
+    setLoadingGrid(true); // Reusamos el estado de carga o uno nuevo para feedback
+    try {
+      const resp = await getTicketInfo(codigo);
       if (resp.success) {
         setTicketEncontrado(resp.data);
+        setCodigoBarraSalida(codigo);
       } else {
-        alert(resp.message || 'Ticket no válido');
+        alert(resp.message || 'Ticket no válido o ya pagado');
         setTicketEncontrado(null);
       }
+    } catch (err) {
+      console.error(err);
+      alert('Error al consultar el ticket');
+    } finally {
+      setLoadingGrid(false);
     }
   };
+
+  const handleBuscarTicket = async (e) => {
+    if (e.key === 'Enter' && codigoBarraSalida) {
+      efectuarBusqueda(codigoBarraSalida);
+    }
+  };
+
+  // Auto-búsqueda para escáneres físicos que no mandan "Enter"
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Si el código tiene longitud de barcode típica (8-16 chars) y no hay ticket cargado
+      if (codigoBarraSalida.length >= 8 && !ticketEncontrado) {
+        efectuarBusqueda(codigoBarraSalida);
+      }
+    }, 600); // 600ms de calma tras terminar de "teclear/escanear"
+    return () => clearTimeout(timer);
+  }, [codigoBarraSalida]);
 
   const handlePagar = async (metodo) => {
     if (!ticketEncontrado) return;
@@ -281,18 +312,41 @@ export default function Caseta() {
             {/* Lector de Codigo */}
             <div>
               <label className="block text-sm text-slate-400 mb-1 font-medium">Lector. Código de Barras (Ticket)</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  className="w-full pl-4 pr-12 py-4 text-lg md:text-xl font-mono bg-amber-950/20 border-2 border-amber-600/50 rounded-xl focus:outline-none focus:border-amber-500 transition-all text-amber-100 placeholder-amber-900/50 shadow-inner"
-                  placeholder="Escanee ticket..."
-                  value={codigoBarraSalida}
-                  onChange={(e) => setCodigoBarraSalida(e.target.value)}
-                  onKeyDown={handleBuscarTicket}
-                />
-                <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-amber-600/50" />
+              <div className="relative flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <input 
+                    type="text" 
+                    className="w-full pl-4 pr-12 py-4 text-lg md:text-xl font-mono bg-amber-950/20 border-2 border-amber-600/50 rounded-xl focus:outline-none focus:border-amber-500 transition-all text-amber-100 placeholder-amber-900/50 shadow-inner"
+                    placeholder="Escanee o escriba..."
+                    value={codigoBarraSalida}
+                    onChange={(e) => setCodigoBarraSalida(e.target.value)}
+                    onKeyDown={handleBuscarTicket}
+                  />
+                  <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-amber-600/50" />
+                </div>
+                {/* Botón Cámara — Solo en móvil/tablet */}
+                {isMobile && (
+                  <button
+                    onClick={() => setShowScanner(true)}
+                    title="Escanear con cámara del celular"
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold rounded-xl px-3 py-4 shadow-lg shadow-amber-900/40 transition-all"
+                  >
+                    <Camera className="w-6 h-6" />
+                    <span className="text-[10px] leading-none">Cámara</span>
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Modal escáner de cámara */}
+            {showScanner && (
+              <BarcodeScanner
+                onResult={(codigo) => {
+                  efectuarBusqueda(codigo);
+                }}
+                onClose={() => setShowScanner(false)}
+              />
+            )}
 
             {/* Simulación de Desglose de Tarifa */}
             <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 space-y-3">
